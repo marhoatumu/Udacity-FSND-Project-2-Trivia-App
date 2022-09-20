@@ -7,26 +7,75 @@ import random
 from models import setup_db, Question, Category
 
 QUESTIONS_PER_PAGE = 10
+CATEGORIES_PER_PAGE = 10
+
+#Pagination function for questions
+def paginate_questions(request, selection):
+    page = request.args.get('page', 1, type=int)
+    start = (page - 1) * QUESTIONS_PER_PAGE
+    end = start + QUESTIONS_PER_PAGE
+
+    questions = [question.format() for question in selection]
+    current_questions = questions[start:end]
+
+    return current_questions
+
+#Pagination function for categories
+def paginate_categories(request, selection):
+    page = request.args.get('page', 1, type=int)
+    start = (page - 1) * CATEGORIES_PER_PAGE
+    end = start + CATEGORIES_PER_PAGE
+
+    categories = [category.format() for category in selection]
+    current_categories = categories[start:end]
+
+    return current_categories
 
 def create_app(test_config=None):
     # create and configure the app
     app = Flask(__name__)
     setup_db(app)
-
+    
     """
     @TODO: Set up CORS. Allow '*' for origins. Delete the sample route after completing the TODOs
     """
+    cors = CORS(app, resources={r"/api/*": {"origins": "*"}})
+
 
     """
     @TODO: Use the after_request decorator to set Access-Control-Allow
     """
+    # CORS Headers
+    @app.after_request
+    def after_request(response):
+        response.headers.add(
+            "Access-Control-Allow-Headers", "Content-Type,Authorization,true"
+        )
+        response.headers.add(
+            "Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS"
+        )
+        return response
+
 
     """
     @TODO:
     Create an endpoint to handle GET requests
     for all available categories.
     """
+    #Get request for all the trivia categories
+    @app.route('/categories')
+    def get_categories():
+        category_selection = Category.query.order_by(Category.id).all()
+        formatted_categories = paginate_categories(request, category_selection)
 
+        if len(formatted_categories) == 0:
+            abort(404)
+
+        return jsonify({
+            'success':True,
+            'categories':formatted_categories,
+            'total_categories':len(Category.query.all())
+            })
 
     """
     @TODO:
@@ -97,6 +146,39 @@ def create_app(test_config=None):
     Create error handlers for all expected errors
     including 404 and 422.
     """
+    #Error Message Decorators
+    @app.errorhandler(400)
+    def bad_request(error):
+        return jsonify({
+            "success": False, 
+            "error": 400,
+            "message": "Invalid request"
+            }), 400
+
+    @app.errorhandler(404)
+    def not_found(error):
+        return jsonify({
+            "success": False, 
+            "error": 404,
+            "message": "Not found"
+            }), 404
+
+    @app.errorhandler(405)
+    def not_allowed(error):
+        return jsonify({
+            "success": False, 
+            "error": 405,
+            "message": "Method not allowed"
+            }), 405
+
+    @app.errorhandler(422)
+    def not_processed(error):
+        return jsonify({
+            "success": False, 
+            "error": 422,
+            "message": "Request could not be processed"
+            }), 422
+
 
     return app
 
