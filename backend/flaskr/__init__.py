@@ -1,4 +1,5 @@
 import os
+from unicodedata import category
 from flask import Flask, request, abort, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
@@ -151,6 +152,32 @@ def create_app(test_config=None):
     the form will clear and the question will appear at the end of the last page
     of the questions list in the "List" tab.
     """
+    #Endpoint for adding new questions
+    @app.route('/questions', methods=['POST'])
+    def add_question():
+        body = request.get_json()
+
+        new_question = body.get('question', None)
+        new_answer = body.get('answer', None)
+        new_category = body.get('category', None)
+        new_difficulty = body.get('difficulty', None)
+
+        try:
+            question = Question(question=new_question, answer=new_answer, difficulty=new_difficulty, category=new_category)
+            question.insert()
+
+            question_selection = Question.query.order_by(Question.id).all()
+            formatted_questions = paginate_questions(request, question_selection)
+
+            return jsonify({
+                'success':True,
+                'created': question.id,
+                'questions':formatted_questions,
+                'total_questions':len(Question.query.all())
+                })
+
+        except:
+                abort(422)
 
     """
     @TODO:
@@ -162,6 +189,25 @@ def create_app(test_config=None):
     only question that include that string within their question.
     Try using the word "title" to start.
     """
+    #Endpoint for searching for questions
+    @app.route('/search', methods=['POST'])
+    def search_question():
+        body = request.get_json()
+        search = body.get('searchTerm', None)
+
+        question_selection = Question.query.filter(Question.question.ilike('%'+search+'%')).all()
+        
+        if question_selection:
+            formatted_questions = paginate_questions(request, question_selection)
+            
+            return jsonify({
+                "success": True,
+                "questions": formatted_questions,
+                "total_questions": len(question_selection),
+            })
+
+        else:
+            abort(422)
 
     """
     @TODO:
@@ -171,6 +217,25 @@ def create_app(test_config=None):
     categories in the left column will cause only questions of that
     category to be shown.
     """
+    #Endpoint for getting qustions by category
+    @app.route('/categories/<int:id>/questions', methods=['GET'])
+    def question_by_category(id):
+        category = Category.query.filter_by(id=id).one_or_none()
+        if category:
+            question_selection = Question.query.filter_by(category=str(id)).all()
+            formatted_questions = paginate_questions(request, question_selection)
+
+            return jsonify({
+                'success':True,
+                'questions':formatted_questions,
+                'total_questions':len(question_selection),
+                'current_category': id
+                })
+        
+        else:
+            abort(404)
+
+
 
     """
     @TODO:
@@ -183,6 +248,33 @@ def create_app(test_config=None):
     one question at a time is displayed, the user is allowed to answer
     and shown whether they were correct or not.
     """
+    #Endpoint to play quiz
+    @app.route('/quizzes', methods=['POST'])
+    def play_quiz():
+
+        body = request.get_json()
+        quizCategory = body.get('quiz_category')
+        previousQuestion = body.get('previous_questions')
+
+        try:
+            if int(category['id']) == 0:
+                question_selection = Question.query.filter(Question.id.not_in_(previousQuestion)).all()
+            else:
+                question_selection = Question.query.filter(Question.id.not_in_(previousQuestion), Question.category==str(quizCategory['id'])).all()
+
+            current_question = None
+            if(question_selection):
+                current_question = random.choice(question_selection)
+
+            return jsonify({
+                'success':True,
+                'question':current_question.format(),
+                'current_category': category['type']
+                })
+        
+        except:
+            abort(422)
+
 
     """
     @TODO:
