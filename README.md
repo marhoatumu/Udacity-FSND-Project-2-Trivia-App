@@ -149,13 +149,15 @@ The API will return three error types when requests fail:
 
 - Sends a post request in order to get the next question
 - Request Body:
-```{
+```
+{
     'previous_questions': [1, 4, 20, 15]
     quiz_category': 'current category'
  }
  ```
 - Returns: a single new question object
-```{
+```
+{
   "question": {
     "id": 1,
     "question": "This is a question",
@@ -170,7 +172,8 @@ The API will return three error types when requests fail:
 
 - Sends a post request in order to add a new question
 - Request Body:
-```{
+```
+{
   "question": "Heres a new question string",
   "answer": "Heres a new answer string",
   "difficulty": 1,
@@ -183,12 +186,14 @@ The API will return three error types when requests fail:
 
 - Sends a post request in order to search for a specific question by search term
 - Request Body:
-```{
+```
+{
   "searchTerm": "this is the term the user is looking for"
 }
 ```
 - Returns: any array of questions, a number of totalQuestions that met the search term and the current category string
-```{
+```
+{
   "questions": [
     {
       "id": 1,
