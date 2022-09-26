@@ -116,11 +116,11 @@ def create_app(test_config=None):
     TEST: When you click the trash icon next to a question, the question will be removed.
     This removal will persist in the database and when you refresh the page.
     """
-    #Endpoint for deleting a qustion
-    @app.route('/questions/<int:question_id>', methods=['DELETE'])
-    def delete_question(question_id):
+    #Endpoint for deleting a question
+    @app.route('/questions/<int:id>', methods=['DELETE'])
+    def delete_question(id):
         try:
-            question = Question.query.filter(Question.id==question_id).one_or_none()
+            question = Question.query.filter_by(id=id).one_or_none()
             if question is None:
                 abort(404)
             
@@ -133,7 +133,7 @@ def create_app(test_config=None):
 
             return jsonify({
                 'success':True,
-                'deleted': question_id,
+                'deleted': id,
                 'questions':formatted_questions,
                 'total_questions':len(Question.query.all()),
                 'categories':{category.id: category.type for category in category_selection}
@@ -159,8 +159,9 @@ def create_app(test_config=None):
 
         new_question = body.get('question', None)
         new_answer = body.get('answer', None)
-        new_category = body.get('category', None)
         new_difficulty = body.get('difficulty', None)
+        new_category = body.get('category', None)
+        
 
         try:
             question = Question(question=new_question, answer=new_answer, difficulty=new_difficulty, category=new_category)
@@ -190,14 +191,13 @@ def create_app(test_config=None):
     Try using the word "title" to start.
     """
     #Endpoint for searching for questions
-    @app.route('/search', methods=['POST'])
+    @app.route('/questions/search', methods=['POST'])
     def search_question():
         body = request.get_json()
         search = body.get('searchTerm', None)
-
-        question_selection = Question.query.filter(Question.question.ilike('%'+search+'%')).all()
         
-        if question_selection:
+        if search:
+            question_selection = Question.query.filter(Question.question.ilike(f'%{search}%')).all()
             formatted_questions = paginate_questions(request, question_selection)
             
             return jsonify({
@@ -253,23 +253,30 @@ def create_app(test_config=None):
     def play_quiz():
 
         body = request.get_json()
-        quizCategory = body.get('quiz_category')
-        previousQuestion = body.get('previous_questions')
+        quiz_category = body.get('quiz_category')
+        previous_question = body.get('previous_questions')
 
         try:
-            if int(category['id']) == 0:
-                question_selection = Question.query.filter(Question.id.not_in_(previousQuestion)).all()
+            if quiz_category['id'] == 0:
+                question_selection = Question.query.all()
             else:
-                question_selection = Question.query.filter(Question.id.not_in_(previousQuestion), Question.category==str(quizCategory['id'])).all()
+                question_selection = Question.query.filter_by(category=quiz_category['id']).all()
 
-            current_question = None
-            if(question_selection):
-                current_question = random.choice(question_selection)
+            random_id = random.randint(0, len(question_selection)-1)
+            current_question = question_selection[random_id]
+            
+            while current_question.id not in previous_question:
+                current_question = question_selection[random_id]
 
             return jsonify({
                 'success':True,
-                'question':current_question.format(),
-                'current_category': category['type']
+                'question':{
+                        "answer": current_question.answer,
+                        "category": current_question.category,
+                        "difficulty": current_question.difficulty,
+                        "id": current_question.id,
+                        "question": current_question.question
+                    }
                 })
         
         except:
