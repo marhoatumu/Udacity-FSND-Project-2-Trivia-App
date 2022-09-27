@@ -197,7 +197,7 @@ def create_app(test_config=None):
         search = body.get('searchTerm', None)
         
         if search:
-            question_selection = Question.query.filter(Question.question.ilike(f'%{search}%')).all()
+            question_selection = Question.query.order_by(Question.id).filter(Question.question.ilike(f'%{search}%')).all()
             formatted_questions = paginate_questions(request, question_selection)
             
             return jsonify({
@@ -220,9 +220,9 @@ def create_app(test_config=None):
     #Endpoint for getting qustions by category
     @app.route('/categories/<int:id>/questions', methods=['GET'])
     def question_by_category(id):
-        category = Category.query.filter_by(id=id).one_or_none()
+        category = Category.query.filter(Category.id == id).one_or_none()
         if category:
-            question_selection = Question.query.filter_by(category=str(id)).all()
+            question_selection = Question.query.filter(Question.category == id).all()
             formatted_questions = paginate_questions(request, question_selection)
 
             return jsonify({
@@ -252,31 +252,25 @@ def create_app(test_config=None):
     @app.route('/quizzes', methods=['POST'])
     def play_quiz():
 
-        body = request.get_json()
-        quiz_category = body.get('quiz_category')
-        previous_question = body.get('previous_questions')
-
         try:
-            if quiz_category['id'] == 0:
+            body = request.get_json()
+            quiz_category = body.get('quiz_category', None)
+            previous_question = body.get('previous_questions', None)
+            category_id = quiz_category.get('id')
+
+            if category_id == 0:
                 question_selection = Question.query.all()
             else:
-                question_selection = Question.query.filter_by(category=quiz_category['id']).all()
+                question_selection = Question.query.filter_by(category=category_id).all()
 
-            random_id = random.randint(0, len(question_selection)-1)
-            current_question = question_selection[random_id]
+            current_question = question_selection[random.randint(0, len(question_selection)-1)]
             
             while current_question.id not in previous_question:
-                current_question = question_selection[random_id]
+                current_question = question_selection[random.randint(0, len(question_selection)-1)]
 
             return jsonify({
                 'success':True,
-                'question':{
-                        "answer": current_question.answer,
-                        "category": current_question.category,
-                        "difficulty": current_question.difficulty,
-                        "id": current_question.id,
-                        "question": current_question.question
-                    }
+                'question':current_question.format()
                 })
         
         except:
